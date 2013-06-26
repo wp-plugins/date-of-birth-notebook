@@ -120,10 +120,10 @@ function view_birthday_all() {
     $prepare = 10;
     if (empty($_GET['num_er']) || ($_GET['num_er'] <= 0)) {
         $num_er = 1;
-        echo $num_er;
+        
     } else {
         $num_er = (int) $_GET['num_er'];
-        echo $num_er;
+        
     }
     //Проверка по адресу страницы
     //Выводим информацию из таблицы
