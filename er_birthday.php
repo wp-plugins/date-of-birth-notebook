@@ -4,7 +4,7 @@
   Plugin Name: Date of birth notebook
   Plugin URI: http://www.zixn.ru/229.html
   Description: Plug-in notepad or notebook, keep records of the names and dates, birthdays shows. Easy and simple.
-  Version: 1.1
+  Version: 1.2
   Author: Djon
   Author URI: http://zixn.ru
  */
@@ -43,19 +43,20 @@ $url = "er_birthday";
 //Время дла базы
 $url_plugin = "$_SERVER[SCRIPT_NAME]?page=er_birthday";
 //Опция в базе ВордПресс
-$name_options="er_birthday_delete_db";
+$name_options = "er_birthday_delete_db";
 
 function er_create_table() {
     global $wpdb;
     global $er_db_version;
-add_option($name_options,'0','','yes');
+    add_option($name_options, '0', '', 'yes');
     $table_name = $wpdb->prefix . "erbirthday";
     if ($wpdb->get_var("show tables like '$table_name'") != $table_name) {
 
         $sql = "CREATE TABLE " . $table_name . " (
 	id INT PRIMARY KEY AUTO_INCREMENT,
         fio VARCHAR(60),
-        data_fio TEXT
+        data_fio TEXT,
+        zametka TEXT
 	);";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -69,10 +70,10 @@ add_option($name_options,'0','','yes');
 }
 
 //Запись данных в таблицу
-function insert_table($fio, $data) {
+function insert_table($fio, $data, $zametka) {
     global $wpdb, $table_name;
-    $query_insert = $wpdb->prepare("INSERT INTO $table_name(fio,data_fio)
-            VALUES('$fio','$data')");
+    $query_insert = $wpdb->prepare("INSERT INTO $table_name(fio,data_fio,zametka)
+            VALUES('$fio','$data','$zametka')");
     $wpdb->query($query_insert);
 }
 
@@ -83,10 +84,11 @@ function post_data_fio() {
     if (isset($_POST['zapisat'])) {
         $fio = trim($_POST['fio']);
         $data = trim($_POST['data_fio']);
+        $zametka = ($_POST['zametka']);
         if ($fio !== "" and $data !== "") {
             if (preg_match_all($pravilo_date, $data, $result_data)) {
                 $data = $result_data[0][0];
-                insert_table($fio, $data);
+                insert_table($fio, $data, $zametka);
             } else {
 
                 echo '<div id="er_warning">Вы ввели не верную дату!</div>';
@@ -97,9 +99,32 @@ function post_data_fio() {
     }
 }
 
+//Постраничный вывод записей блокнота
+function string_number($num_er, $page_count) {
+    global $url_plugin;
+    for ($i = 1; $i <= $page_count; $i++) {
+        if ($i == $num_er) {
+            echo "<a>" . $i . "</a>";
+        } else {
+            echo '<a href=' .$url_plugin. '&num_er=' . $i . '>' . $i . '</a>';
+        }
+        if ($i != $page_count)
+            echo "|";
+    }
+    return true;
+}
+
 //Вывод всей инфы
 function view_birthday_all() {
     global $wpdb, $table_name, $url_plugin;
+    $prepare = 10;
+    if (empty($_GET['num_er']) || ($_GET['num_er'] <= 0)) {
+        $num_er = 1;
+        echo $num_er;
+    } else {
+        $num_er = (int) $_GET['num_er'];
+        echo $num_er;
+    }
     //Проверка по адресу страницы
     //Выводим информацию из таблицы
     //$select = "SELECT * FROM $table_name, ARRAY_A";
@@ -109,9 +134,23 @@ function view_birthday_all() {
     echo "<form action=\"$url_plugin\" method=\"POST\">";
     //Некая защита для WP в формах
     wp_nonce_field('view_brthday_all_opt');
+    //Количество записей в базе
+    $count = count($wpdb->get_results("SELECT id FROM $table_name", ARRAY_A));
+    //print_r($all_zap);
+    $page_count = ceil($count / $prepare);
+    if ($num_er>$page_count)
+        $num_er=$page_count;
+    $start_pos=($num_er-1)*$prepare;
+//        for ($j = 0; $j <= $count; $j++) {
+//            $col_vo = $wpdb->get_row("SELECT id FROM $table_name", ARRAY_A, $j);
+//            echo $col_vo[id] . "<br>";
+//        }
+    echo "<br><strong>";
+    string_number($num_er, $page_count);
+    echo "<br></strong>";
     //Для вывода 10 записей
     for ($i = 0; $i <= 10; $i++) {
-        $result = $wpdb->get_row("SELECT * FROM $table_name", ARRAY_A, $i);
+        $result = $wpdb->get_row("SELECT * FROM $table_name limit $start_pos,$prepare", ARRAY_A, $i);
         //Что бы не выводились пустые строки
         if ($result[fio] != NULL) {
             echo $result[id] . ") ";
@@ -122,24 +161,22 @@ function view_birthday_all() {
         }
     }
 
-    echo "<input type=\"submit\" value=\"Правка\" name=\"redactor\"/>";
+    echo "<input type=\"submit\" value=\"Показать\" name=\"redactor\"/>";
     echo "<input type=\"submit\" name=\"dr_actual\" value=\"Чей сегодня день?\"/>";
     echo "</form>";
 }
 
-//Показывае ошибки базы
 //Диактивация плагина
 function er_drop_table() {
-    global $wpdb, $table_name,$name_options;
-    if(get_option($name_options)==1) {
+    global $wpdb, $table_name, $name_options;
+    if (get_option($name_options) == 1) {
         delete_option($name_options);
-    delete_option('jal_db_version');
-    $sql = "DROP TABLE $table_name";
-    $wpdb->query($sql);
+        delete_option('jal_db_version');
+        $sql = "DROP TABLE $table_name";
+        $wpdb->query($sql);
     } else {
         delete_option($name_options);
     }
-    
 }
 
 //Создание меню в разделе Настройка
@@ -161,6 +198,7 @@ function er_options_page() {
     echo '<input type="text" name="data_fio"/>';
     echo '<em>Пример: 28.08.1987</em>';
     echo '</p>';
+    echo '<p> Заметка<textarea cols="35" rows="5" name="zametka"></textarea></p>';
     echo '<input type="submit" value="Записать" name="zapisat"/>';
     echo '</form>';
 }
@@ -182,6 +220,7 @@ function red_up_del() {
         wp_nonce_field('view_brthday_all_opt');
         echo "<p><input type=\"text\" name=\"up_fio\" value=\"$v1[fio]\"/>ФИО</p>";
         echo "<p><input type=\"text\" name=\"up_data\" value=\"$v1[data_fio]\"/>Дата</p>";
+        echo "<p><textarea cols=\"35\" rows=\"5\" name=\"up_zametka\">$v1[zametka]</textarea>Заметка</p>";
         echo "<input type=\"hidden\" name=\"up_id\" value=\"$v1[id]\"/>";
         echo '<input type="submit" name="update" value="Обновить"/>';
         echo '<input type="submit" name="delete" value="Удалить"/>';
@@ -192,11 +231,13 @@ function red_up_del() {
         $up_fio = $_POST['up_fio'];
         $up_data = $_POST['up_data'];
         $up_id = $_POST['up_id'];
+        $up_zametka = $_POST['up_zametka'];
         //echo $up_data . "  " . $up_fio;
         //$update_query="UPDATE notepad_info SET fio=DjonPadla  WHERE id=19";
         $update_query = "UPDATE $table_name SET
         fio='$up_fio',
-        data_fio='$up_data'
+        data_fio='$up_data',
+        zametka='$up_zametka'
             WHERE
                 id='$up_id'
             ";
@@ -207,6 +248,7 @@ function red_up_del() {
         $up_fio = $_POST['up_fio'];
         $up_data = $_POST['up_data'];
         $up_id = $_POST['up_id'];
+        $up_zametka = $_POST['up_zametka'];
         //echo $up_id;
         $delete_query = "DELETE FROM $table_name WHERE id='$up_id'";
         $wpdb->query($wpdb->prepare($delete_query));
@@ -236,40 +278,38 @@ function red_up_del() {
 
 //Настройки
 function er_options() {
-    global $url_plugin,$name_options;
+    global $url_plugin, $name_options;
     echo '<div id="er_options">';
     echo "<form action=\"$url_plugin\" method=\"POST\">";
     wp_nonce_field('view_brthday_all_opt');
     echo "<strong>Настройки плагина Блокнот Даты и Фамилии</strong>";
-    
-    if(get_option($name_options)==0) {
-    echo '<p><input type="checkbox" name="checkbox_opt_active" />Удалять записи при деактивации плагина</p>';
-    }
-    else {
+
+    if (get_option($name_options) == 0) {
+        echo '<p><input type="checkbox" name="checkbox_opt_active" />Удалять записи при деактивации плагина</p>';
+    } else {
         echo '<p><input type="checkbox" name="checkbox_opt_active" checked />Удалять записи при деактивации плагина</p>';
     }
     echo '<input type="submit" name="eroptions_buton" value="Сохранить"/>';
     echo "</form>";
-    if(isset($_POST['eroptions_buton'])) {
-        if(isset($_POST['checkbox_opt_active'])){
+    if (isset($_POST['eroptions_buton'])) {
+        if (isset($_POST['checkbox_opt_active'])) {
             echo "Галочка стоит";
-            update_option($name_options,1);
+            update_option($name_options, 1);
         } else {
             echo "Галочка НЕ стоит";
-            update_option($name_options,0);
-            
+            update_option($name_options, 0);
         }
     }
-    
-    
+
+
     echo "<form action=\"$url_plugin\" method=\"POST\">";
     wp_nonce_field('view_brthday_all_opt');
     echo "<p>Внимание! Применять кнопку \"Очистить\" следует в случае полного избавления от плагина (Очистка базы от упоминаний
         о плагине)<br><input type=\"submit\" name=\"er_reset_base\" value=\"Очистить\"/></p>";
-    if(isset($_POST['er_reset_base'])) 
+    if (isset($_POST['er_reset_base']))
         delete_option($name_options);
-    
-    
+
+
     echo '</div>';
 }
 
@@ -293,7 +333,7 @@ z-index: 1;
 #view_birthday_all {
 position: absolute;
 left: 14%;
-top: 230px;
+top: 350px;
 z-index: 1;
 }
 #er_warning {
@@ -316,11 +356,8 @@ z-index: -1;
 </style>    
 ';
 }
+
 //Опции
-
-
-
-
 //Активируем вывод всех записей, а так же редактирование
 if (strpos($_SERVER['REQUEST_URI'], $url) == TRUE) {
 
@@ -335,5 +372,5 @@ if (strpos($_SERVER['REQUEST_URI'], $url) == TRUE) {
 
 //Активация меню
 
-        add_action('admin_menu', 'add_birthday_admin_pages');
+add_action('admin_menu', 'add_birthday_admin_pages');
 ?>
