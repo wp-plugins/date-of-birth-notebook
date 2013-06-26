@@ -30,8 +30,8 @@ While doing the installation procedure, it is recommended to go through all the 
 1. Settings include cleaning options blog from the information left by the plugin
 
 == Changelog ==
-=1.2=
-* fix navi function and notes
+= 1.2 =
+*fix navi function and notes
 = 1.1 =
 *fix author
 = 1.0 =
