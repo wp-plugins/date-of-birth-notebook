@@ -1,6 +1,6 @@
 === Date of birth notebook Wordpress Plugin ===
-Contributors: kates
-Donate link: http://www.katesgasis.com/
+Contributors: northmule
+Donate link: http://www.zixn.ru/
 Tags: notepad
 Requires at least: 3.5.2
 Tested up to: 3.5
@@ -30,5 +30,7 @@ While doing the installation procedure, it is recommended to go through all the 
 1. Settings include cleaning options blog from the information left by the plugin
 
 == Changelog ==
+= 1.1 =
+*fix author
 = 1.0 =
 *fix css

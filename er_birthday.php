@@ -4,11 +4,11 @@
   Plugin Name: Date of birth notebook
   Plugin URI: http://www.zixn.ru/229.html
   Description: Plug-in notepad or notebook, keep records of the names and dates, birthdays shows. Easy and simple.
-  Version: 1.0
-  Author: Ermak
+  Version: 1.1
+  Author: Djon
   Author URI: http://zixn.ru
  */
-/*  Copyright 2013  Ermak  (email: Ermak_not@mail.ru)
+/*  Copyright 2013  Djon  (email: Ermak_not@mail.ru)
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -336,5 +336,4 @@ if (strpos($_SERVER['REQUEST_URI'], $url) == TRUE) {
 //Активация меню
 
         add_action('admin_menu', 'add_birthday_admin_pages');
-
 ?>
