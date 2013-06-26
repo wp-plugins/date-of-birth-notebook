@@ -31,7 +31,7 @@ While doing the installation procedure, it is recommended to go through all the 
 
 == Changelog ==
 =1.2=
-*navi function and notes
+* fix navi function and notes
 = 1.1 =
 *fix author
 = 1.0 =
