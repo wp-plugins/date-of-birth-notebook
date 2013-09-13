@@ -1,10 +1,9 @@
 <?php
-
 /*
   Plugin Name: Date of birth notebook
-  Plugin URI: http://www.zixn.ru/229.html
+  Plugin URI: http://www.zixn.ru/category/wp_create_plugin
   Description: Plug-in notepad or notebook, keep records of the names and dates, birthdays shows. Easy and simple.
-  Version: 1.3
+  Version: 1.5
   Author: Djon
   Author URI: http://zixn.ru
  */
@@ -27,15 +26,16 @@
  */
 ?>
 <?php
-
 //include_once 'er_data.php';
+//Подключаем функции загрзки
+//include_once 'upload_fun.php';
 //Активация плагина и создание таблиц
 register_activation_hook(__FILE__, 'er_create_table');
 //Удаляем настройки при диактивации плагина
 register_deactivation_hook(__FILE__, 'er_drop_table');
 //Создание таблицы плагина в mysql
 global $er_db_version, $table_name;
-$er_db_version = "2.0";
+$er_db_version = "2.2";
 //Название таблицы
 $table_name = $wpdb->prefix . "erbirthday";
 //Адрес плагина
@@ -48,19 +48,30 @@ $name_options_sort = "er_sortirovka";
 //Варианты сортировки
 $er_asc = "ASC";
 $er_desc = "DESC";
+//Папка создаваемая плагином
+$patch_er_birt = ABSPATH . 'wp-content/er_birthday/';
+//Путь до папки плагина как URL
+$url_content = content_url() . '/er_birthday/';
 
+//Создаём таблицу 27.08.2013 Добавил новое поле image
 function er_create_table() {
     global $wpdb;
     global $er_db_version, $name_options_sort, $er_desc;
-
+    //Создаем папку для плагина ABSPATCH это полный путь от корня до папки юзера на сервере
+    @mkdir(ABSPATH . 'wp-content/er_birthday');
     $table_name = $wpdb->prefix . "erbirthday";
     if ($wpdb->get_var("show tables like '$table_name'") != $table_name) {
+
 
         $sql = "CREATE TABLE " . $table_name . " (
 	id INT PRIMARY KEY AUTO_INCREMENT,
         fio VARCHAR(60),
         data_fio TEXT,
-        zametka TEXT
+        zametka TEXT,
+        image TEXT,
+        image_orig TEXT,
+        image_put TEXT,
+        image_puto TEXT
 	);";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -78,25 +89,86 @@ function er_create_table() {
 }
 
 //Запись данных в таблицу
-function insert_table($fio, $data, $zametka) {
+function insert_table($fio, $data, $zametka, $image, $image_orig,$image_put,$image_puto) {
     global $wpdb, $table_name;
-    $query_insert = $wpdb->prepare("INSERT INTO $table_name(fio,data_fio,zametka)
-            VALUES('$fio','$data','$zametka')");
+    $query_insert = $wpdb->prepare("INSERT INTO $table_name(fio,data_fio,zametka,image,image_orig,image_put,image_puto)
+            VALUES('$fio','$data','$zametka','$image','$image_orig','$image_put','$image_puto')");
     $wpdb->query($query_insert);
+}
+//Подключаем фэнсибок для изображений 
+function fancebook_er() {
+    
+    ?>
+
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="/wp-content/plugins/date-of-birth-notebook/fancybox/jquery.fancybox-1.3.4.css" type="text/css" media="screen" />
+    <script type="text/javascript" src="/wp-content/plugins/date-of-birth-notebook/fancybox/jquery.fancybox-1.3.4.pack.js"></script>
+    <script type="text/javascript">
+        var jf = jQuery.noConflict();
+        jf(document).ready(function() {
+
+            jf("a.openbk").fancybox({
+                'title':'Карточка Блокнота',
+                'transitionIn': 'elastic',
+                'transitionOut': 'elastic',
+                'speedIn': 300,
+                'speedOut': 300,
+                'overlayShow': true,
+                'hideOnContentClick': false,
+                'type': 'iframe',
+   
+                'autoDimensions':true,
+                'overlayColor': '#000000',
+                'overlayOpacity': 0.5,
+                'centerOnScroll': true,
+                'padding': 10,
+                'margin': 0,
+                'scrolling': 'no'
+            });
+
+        });</script>
+    <?php
 }
 
 //Ловим ПОСТ из формы и отправляем их в "запись данных"
 function post_data_fio() {
+    global $patch_er_birt, $url_content;
     $pravilo_date = "/[0-3]+[0-9]+\.[0-1]+[0-9]+\.[0-2]+[0-9]+[0-9]+[0-9]+/";
 //Нажата ли кнопка - запись
     if (isset($_POST['zapisat'])) {
         $fio = trim($_POST['fio']);
         $data = trim($_POST['data_fio']);
         $zametka = ($_POST['zametka']);
+        //Загрузка фотки
+        $name_file = $_FILES['er_upfile']['name'];
+        $tmp_file = $_FILES['er_upfile']['tmp_name'];
+        //Изменил метот вордпресса на метод php
+        //$er_up = wp_upload_bits($name_file, null, file_get_contents("$tmp_file"));
+        move_uploaded_file($tmp_file, $patch_er_birt . $name_file);
+        //функция ресайза изображения, описанна выше
+        $img = wp_get_image_editor($patch_er_birt . $name_file);
+        if (!is_wp_error($img)) {
+            //Массив для множества размеров
+            $sizes_array = array(
+                array('width' => 100, 'height' => 100, 'crop' => true),
+            );
+
+            $resize = $img->multi_resize($sizes_array);
+
+            foreach ($resize as $row) {
+                $img->save($row['file']);
+            }
+        } //Конец ресайза
+
+       // $image = '<p id="img_position"><a href="' . $url_content . $name_file . '" class="openbk" >Ориг.</a>' . '<img src="' . $url_content . $row['file'] . '"></p>';
+        $image=$url_content . $row['file'];
+        $image_orig=$url_content . $name_file;
+        $image_put=$patch_er_birt.$row['file'];
+        $image_puto=$patch_er_birt.$name_file;
         if ($fio !== "" and $data !== "") {
             if (preg_match_all($pravilo_date, $data, $result_data)) {
                 $data = $result_data[0][0];
-                insert_table($fio, $data, $zametka);
+                insert_table($fio, $data, $zametka, $image,$image_orig,$image_put,$image_puto);
             } else {
 
                 echo '<div id="er_warning">Вы ввели не верную дату!</div>';
@@ -165,7 +237,7 @@ function view_birthday_all() {
     echo "<input type=\"submit\" value=\"Показать\" name=\"redactor\"/>";
     echo "<input type=\"submit\" name=\"dr_actual\" value=\"Чей сегодня день?\"/>";
     echo "</form>";
-        //Конец view_birthday_all
+    //Конец view_birthday_all
     echo '</div>';
 }
 
@@ -182,25 +254,49 @@ function er_drop_table() {
     }
 }
 
-//Создание меню в разделе Настройка
-function add_birthday_admin_pages() {
-    add_options_page('Блокнот Событий', 'Блокнот дней', '8', 'er_birthday', 'er_options_page');
+////Создание меню в разделе Настройка
+//function add_birthday_admin_pages() {
+//    add_options_page('Блокнот Событий', 'Блокнот дней', '8', 'er_birthday', 'er_options_page');
+//    
+//}
+//Создаем раздел меню (тест)
+add_action('admin_menu', 'register_my_custom_menu_page');
+
+//Добавляем раздел меню
+function register_my_custom_menu_page() {
+    add_menu_page('БлокнотWP', 'NotepadWP', '8', 'er_birthday', 'er_options_page', plugins_url('date-of-birth-notebook/images/iconka.png'));
 }
+
+//ПодМеню в разделе
+//add_action('admin_menu', 'register_my_custom_submenu_page');
+//
+//function register_my_custom_submenu_page() {
+//    add_submenu_page('er_birthday', 'Страница настроек', 'Settings', '8', 'er_birtday_sett', 'er_setting_birt');
+//}
+//
+//function er_setting_birt() {
+//    //Иконки настроек
+//    echo '<div class="wrap"><div id="icon-tools" class="icon32"></div>';
+//    echo '<h2>Настройки NotepadWPe</h2>';
+//    echo '</div>';
+//    //Вторая страница
+//    include_once 'er_birt_page2.php';
+//}
 
 //Отображение страницы плагина
 function er_options_page() {
     global $url_plugin;
+    echo '<div class="wrap"><div id="icon-edit-pages" class="icon32"></div>';
     echo "<h2>Блокнот</h2>";
-    echo "<p>Автор плагина: <a href='http://www.zixn.ru/229.html'>zixn.ru</a></p>";
-    if (isset($_POST['redactor']) or isset($_POST['dr_actual']) or isset($_POST['delete']) or isset($_POST['update']) ) {
-        
+    echo '</div>';
+    echo "<p>Страница плагина: <a href='http://www.zixn.ru/229.html'>zixn.ru</a></p>";
+    if (isset($_POST['redactor']) or isset($_POST['dr_actual']) or isset($_POST['delete']) or isset($_POST['update'])) {
+
         red_up_del();
-    }
-        
-        else {
+    } else {
 
 //Форма ввода данных пользователя
-        echo "<form action=\"$url_plugin\" method=\"POST\">";
+        echo "<form action=\"$url_plugin\" method=\"POST\" enctype=\"multipart/form-data\">";
         wp_nonce_field('view_brthday_all_opt');
         echo '<p> ФИО';
         echo '<input type="text" name="fio"/></p>';
@@ -209,6 +305,7 @@ function er_options_page() {
         echo '<em>Пример: 28.08.1987</em>';
         echo '</p>';
         echo '<p> Заметка<textarea cols="35" rows="5" name="zametka"></textarea></p>';
+        echo '<input type="file" name="er_upfile">';
         echo '<input type="submit" value="Записать" name="zapisat"/>';
         echo '</form>';
     }
@@ -234,6 +331,11 @@ function red_up_del() {
         echo "<p><input type=\"text\" name=\"up_data\" value=\"$v1[data_fio]\"/>Дата</p>";
         echo "<p><textarea cols=\"35\" rows=\"5\" name=\"up_zametka\">$v1[zametka]</textarea>Заметка</p>";
         echo "<input type=\"hidden\" name=\"up_id\" value=\"$v1[id]\"/>";
+        echo "<input type=\"hidden\" name=\"up_image\" value=\"$v1[image_put]\"/>";
+        echo "<input type=\"hidden\" name=\"up_image_orig\" value=\"$v1[image_puto]\"/>";
+        // $image = '<p id="img_position"><a href="' . $url_content . $name_file . '" class="openbk" >Ориг.</a>' . '<img src="' . $url_content . $row['file'] . '"></p>';
+        echo '<p id="img_position"><img src="' .$v1[image]. $row['file'] . '"></p>';
+        echo '<p id="img_position"><a href="' .$v1[image_orig]. '" class="openbk" >Ориг.</a></p>';
         echo '<input type="submit" name="update" value="Обновить"/>';
         echo '<input type="submit" name="delete" value="Удалить"/>';
         echo '</form>';
@@ -261,9 +363,24 @@ function red_up_del() {
         $up_data = $_POST['up_data'];
         $up_id = $_POST['up_id'];
         $up_zametka = $_POST['up_zametka'];
+        $del_image=  trim($_POST['up_image']);
+        $del_image_orig=trim($_POST['up_image_orig']);
+        
         //echo $up_id;
+//        $select_img="SELECT image FROM $table_name WHERE id='$up_id'";
+//        $select_img_orig="SELECT image_orig FROM $table_name WHERE id='$up_id'";
         $delete_query = "DELETE FROM $table_name WHERE id='$up_id'";
         $wpdb->query($wpdb->prepare($delete_query));
+        $select_img_a=$wpdb->get_row($select_img);
+        $select_img_orig_a=$wpdb->get_row($select_img_orig);
+//        echo $select_img_a."<br>";
+//        echo $select_img_orig_a."<br>++++++++++++++++++++++++";
+        
+        if(!unlink($del_image))
+            echo "Не могу удалить $del_image"."<br>";
+        if(!unlink($del_image_orig))
+            echo "Не могу удалить $del_image_orig";
+        
     }
     //Проверяем у кого сегодня дни рождений
     if (isset($_POST['dr_actual'])) {
@@ -348,6 +465,43 @@ function er_options() {
     echo '</div>';
 }
 
+//Загрузка изображений(Не использую)
+function er_upload_form() {
+    global $url_plugin, $patch_er_birt;
+    ?>
+    <div id="er_downlod_form">
+        <form method="POST" action="<?php echo $url_plugin; ?>" enctype="multipart/form-data">
+            <input type="file" name="er_upfile">
+            <input type="submit" name="er_butzagruz" value="Загрузить">
+        </form>
+    </div>
+    <?php
+    //$uploaddir = wp_upload_dir();
+
+    if (isset($_POST['er_butzagruz'])) {
+        if ($_FILES) {
+
+
+            $name_file = $_FILES['er_upfile']['name'];
+            $tmp_file = $_FILES['er_upfile']['tmp_name'];
+            $er_up = wp_upload_bits($name_file, null, file_get_contents("$tmp_file"));
+            //var_dump($er_up);
+            //print_r($er_up);
+//            //Информация о загруженном файле1111
+//            echo "Информация о загруженном файле <br>";
+//            echo "Имя: " . $name_file . "</br>";
+//            echo "Размер: " . $_FILES['er_upfile']['size'] . " КБ</br>";
+//            echo "Временное имя: " . $tmp_file . "</br>";
+        }
+    }
+
+    return $er_up['url'];
+}
+
+if (strpos($_SERVER['REQUEST_URI'], $url) == TRUE) {
+    //er_upload_form();
+}
+
 //Блок стилей
 function er_notepad_css() {
     echo '
@@ -384,7 +538,17 @@ color: red;
 #er_updater {
 
 }
-
+#er_downlod_form {
+position: absolute;
+top: 330px;
+left: 220px;
+z-index: 2;
+}
+#img_position{
+position: absolute;
+top: 90px;
+left: 400px;
+}
 -->
 </style>    
 ';
@@ -395,10 +559,13 @@ color: red;
 if (strpos($_SERVER['REQUEST_URI'], $url) == TRUE) {
 
     add_action('admin_head', 'view_birthday_all');
-   // add_action('admin_head', 'red_up_del');
-    add_action('admin_head', 'er_options');
+    // add_action('admin_head', 'red_up_del');
+    add_action('wp_print_scripts', 'er_options');
+    add_action('admin_head', 'fancebook_er');
     //Активация добавления данных
     add_action('admin_head', 'post_data_fio');
+    //Формы так активировать НЕЛЬЗЯ
+    //add_action('admin_head', 'er_upload_form');
 //Активация стилей
     add_action('admin_head', 'er_notepad_css');
 }
