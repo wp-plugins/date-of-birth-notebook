@@ -11,7 +11,9 @@ License URI: http://www.gnu.org/licenses/gpl-2.0.html
 A simple aside plugin.
 
 == Description ==
-[strong](The plugin is no longer supported. Do not install it!)
+
+### The plugin is no longer supported. Do not install it!
+
 Plugin notebook birthdays enables you to record and implies a small notebook in the administration page of your blog. The plugin is designed and tested on a version of the blog 3.4
 For information, visit the Russian page http://www.zixn.ru/229.html.
 
